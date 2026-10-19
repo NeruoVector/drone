@@ -1,0 +1,16 @@
+# 빌드 산출물
+build/
+cmake-build-*/
+out/
+
+# Conan
+CMakeUserPresets.json
+conan.lock
+*.pyc
+__pycache__/
+
+# 에디터
+.vscode/
+.idea/
+*.swp
+.DS_Store
