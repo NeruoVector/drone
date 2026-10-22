@@ -58,3 +58,12 @@ class NeurovectorDroneConan(ConanFile):
             "cmake_target_name", "neurovector::nv_pwm"
         )
         self.cpp_info.components["pwm"].libs = ["nv_pwm"]
+
+        self.cpp_info.components["mission"].set_property(
+            "cmake_target_name", "neurovector::nv_mission"
+        )
+        self.cpp_info.components["mission"].libs = ["nv_mission"]
+        self.cpp_info.components["avoidance"].set_property(
+            "cmake_target_name", "neurovector::nv_avoidance"
+        )
+        self.cpp_info.components["avoidance"].libs = ["nv_avoidance"]

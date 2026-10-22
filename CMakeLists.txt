@@ -10,6 +10,22 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 add_library(drone_hal src/drone_hal.cpp)
 add_library(neurovector::drone_hal ALIAS drone_hal)
 
+add_library(nv_mission src/mission.cpp)
+add_library(neurovector::nv_mission ALIAS nv_mission)
+target_include_directories(nv_mission PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+add_library(nv_avoidance src/avoidance.cpp)
+add_library(neurovector::nv_avoidance ALIAS nv_avoidance)
+target_include_directories(nv_avoidance PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+add_executable(nv_route_check app/route_check.cpp)
+target_link_libraries(nv_route_check PRIVATE neurovector::nv_mission)
+
 target_include_directories(drone_hal PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -41,7 +57,7 @@ endif()
 # ---- 설치 ----------------------------------------------------------------
 include(GNUInstallDirs)
 
-install(TARGETS drone_hal nv_pwm drone_demo
+install(TARGETS drone_hal nv_pwm drone_demo nv_mission nv_avoidance nv_route_check
     EXPORT neurovector-drone-targets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
