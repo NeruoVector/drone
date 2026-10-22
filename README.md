@@ -95,3 +95,14 @@ target_link_libraries(my_app PRIVATE neurovector::drone_hal neurovector::nv_pwm)
 ## 라이선스
 
 MIT
+
+## 경로 교차 검증과 로컬 회피 판단
+
+- [독립 임무 검증기](docs/mission.md): 백엔드 계획의 거리·에너지·금지구역·창문 바깥 정지 지점을 C++에서 다시 계산합니다.
+- [위험도별 회피 판단](docs/avoidance.md): 1·2·3단계 감지와 실제 남은 경로, 거리·상대 속도·관측 신선도를 이용해 진행·감속·정지·재계획을 판단합니다.
+- 공개 헤더: `neurovector/mission.hpp`, `neurovector/avoidance.hpp`
+- CMake 대상: `neurovector::nv_mission`, `neurovector::nv_avoidance`, 실행 파일 `nv_route_check`
+
+현재 HAL에는 임무 통신·GPS 항법·자동 비행 제어기가 없으므로 새 계층은 계산과 결정을 반환합니다.
+상위 항법 계층이 검증된 경로와 실시간 관측을 연결한 뒤 명령을 실행해야 합니다. 기존 데모의
+`arm()`을 경로 검증이나 회피 실행의 대체물로 취급하지 않습니다.
