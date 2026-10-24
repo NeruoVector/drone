@@ -36,6 +36,28 @@ struct Obstacle {
   std::optional<double> distance_m; // Camera radial distance, never optical Z.
   double radius_m{0.5};
 };
+struct LandingSurface {
+  Vec3 ground_point; // Centre of the intended touchdown patch, in ENU metres.
+  double half_width_m{}, half_length_m{};
+  double slope_deg{}, roughness_m{}, position_error_m{};
+  double confidence{}, observed_at_s{};
+  bool sensors_ready{}, support_confirmed{};
+};
+struct LandingConfig {
+  double max_age_s{0.2}, minimum_confidence{0.9};
+  double max_slope_deg{8}, max_roughness_m{0.05};
+  double max_descent_mps{0.5}, max_horizontal_mps{0.3};
+  double alignment_m{0.25}, contact_height_m{0.5}, max_duration_s{120};
+};
+enum class FlightMode { unknown, transit, window_delivery, landing, landed };
+struct VehicleState {
+  FlightMode mode{FlightMode::unknown};
+  double observed_at_s{};
+  bool position_valid{}, velocity_valid{}, attitude_valid{};
+  double roll_deg{}, pitch_deg{};
+  bool motors_healthy{}, thrust_available{};
+  bool ground_contact{}, landed_confirmed{};
+};
 struct Config {
   double drone_radius_m{0.5};
   double clearance_m{0.5};
@@ -49,6 +71,8 @@ struct Config {
   double max_speed_mps{30.0};
   double unknown_obstacle_speed_mps{
       5.0}; // Conservative reachable-region bound.
+  LandingConfig landing;
+  double max_tilt_deg{20};
 };
 struct Input {
   double now_s{};
@@ -64,6 +88,8 @@ struct Input {
   std::vector<Coverage> coverage;
   std::optional<Facade> facade;
   bool window_handoff{}; // Always stationary outside hover; never enter window.
+  std::optional<LandingSurface> landing_surface;
+  VehicleState state; // Fresh mode, estimator and control health from the autopilot.
 };
 enum class Action { proceed, slow, hold, request_replan };
 struct Decision {
@@ -79,6 +105,8 @@ struct Decision {
   std::vector<Vec3> detour;
 };
 Decision decide(const Input &input, const Config &config = {});
+bool valid_config(const Config &config);
+bool usable_vehicle_state(const Input &input, const Config &config = {});
 
 struct Camera {
   double fx{}, fy{}, cx{}, cy{};

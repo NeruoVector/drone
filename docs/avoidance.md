@@ -4,6 +4,15 @@
 
 `decide()` returns `proceed`, `slow`, `hold`, or `request_replan`. Its speed is an advisory ceiling for an existing controller, not a position/velocity setpoint. `hold` means brake and maintain position under the flight controller's supervision. The controller remains responsible for emergency stabilization.
 
+Every input requires a fresh `state` containing the autopilot mode, valid pose,
+velocity and attitude, and healthy control authority. Unknown mode or stale state
+blocks motion. Current braking travel must fit outside the protected facade and
+no-fly zones even when the planned route points away from them.
+
+For landing, set `state.mode=FlightMode::landing` and supply calibrated downward surface
+observations, full descent coverage and obstacles. Missing support or hazards below
+return `hold` before any descent is permitted. See [landing safety](landing-safety.md).
+
 Obstacle priority is 1 for people/body parts/animals, 2 for vehicles and other objects, and 3 for leaves. Every priority can cause a physical collision. `Decision.threat_order` returns all relevant obstacle indices in order; `obstacle_index` identifies the first. Ordering is deterministic: immediate collision first, then priority, collision entry time, current distance, and input index. A lower priority obstacle can still block the action selected for a higher priority obstacle. Beyond the common collision envelope, priority 1 adds twice the clearance margin and uses 1.5 times the caution horizon; priority 2 adds one clearance margin and uses the normal horizon; priority 3 adds no extra caution margin and uses 0.75 times the caution horizon. All three retain the same physical collision margin and full emergency prediction horizon.
 
 The decision checks the forward route corridor and predicts moving-sphere intersections using relative motion along every remaining route segment within the configured horizon. It separately checks current vehicle velocity for an immediate physical collision outside the route corridor. Braking distance includes `speed² / (2 × deceleration)`, reaction travel, and clearance. An obstacle outside the corridor is ignored unless its motion or physical proximity creates a collision risk.

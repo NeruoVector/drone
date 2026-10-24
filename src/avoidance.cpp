@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <tuple>
 
 namespace neurovector::avoidance {
@@ -171,14 +172,132 @@ bool config_valid(const Config &c) {
                         c.max_age_s,         c.horizon_s,
                         c.deceleration_mps2, c.reaction_s,
                         c.slow_speed_mps,    c.detour_offset_m,
-                        c.max_speed_mps,     c.unknown_obstacle_speed_mps};
+                        c.max_speed_mps,     c.unknown_obstacle_speed_mps,
+                        c.max_tilt_deg, c.landing.max_age_s, c.landing.max_slope_deg,
+                        c.landing.max_roughness_m, c.landing.max_descent_mps,
+                        c.landing.max_horizontal_mps, c.landing.alignment_m,
+                        c.landing.contact_height_m, c.landing.max_duration_s};
   for (double v : values)
     if (!finite(v) || v <= 0 || v > 1000)
       return false;
-  return finite(c.minimum_confidence) && c.minimum_confidence >= 0 &&
+  return c.max_tilt_deg < 90 && c.landing.max_slope_deg < 90 &&
+         finite(c.landing.minimum_confidence) && c.landing.minimum_confidence >= 0.5 &&
+         c.landing.minimum_confidence <= 1 && finite(c.minimum_confidence) && c.minimum_confidence >= 0 &&
          c.minimum_confidence <= 1;
 }
+struct LandingCheck {
+  const char *reason{};
+  std::optional<std::size_t> obstacle_index;
+};
+LandingCheck check_landing(const Input &in, const Config &c) {
+  const auto &l = c.landing;
+  if (!in.landing_surface)
+    return {"landing requires valid limits and a measured downward surface", {}};
+  const auto &s = *in.landing_surface;
+  const double measurements[]{s.half_width_m, s.half_length_m, s.slope_deg,
+                              s.roughness_m, s.position_error_m, s.confidence,
+                              s.observed_at_s};
+  for (double v : measurements)
+    if (!finite(v))
+      return {"invalid downward surface measurement", {}};
+  const double age_limit = std::min(c.max_age_s, l.max_age_s);
+  if (!s.sensors_ready || !s.support_confirmed || !finite(s.ground_point) ||
+      s.observed_at_s < 0 || s.observed_at_s > in.now_s ||
+      in.now_s - s.observed_at_s > age_limit ||
+      s.confidence < l.minimum_confidence || s.confidence > 1 ||
+      s.position_error_m <= 0 || s.position_error_m > l.alignment_m ||
+      s.slope_deg < 0 || s.slope_deg > l.max_slope_deg ||
+      s.roughness_m < 0 || s.roughness_m > l.max_roughness_m)
+    return {"downward sensing or stable landing support is uncertain", {}};
+  const double padding = c.drone_radius_m + c.clearance_m +
+                         s.position_error_m + l.alignment_m;
+  if (s.half_width_m < padding || s.half_length_m < padding)
+    return {"landing surface is too small for aircraft clearance", {}};
+  if (std::hypot(in.velocity.x, in.velocity.y) > l.max_horizontal_mps ||
+      in.velocity.z < -l.max_descent_mps || in.velocity.z > 0.05)
+    return {"landing horizontal or descent speed exceeds limits", {}};
+  const double contact_z = s.ground_point.z + l.contact_height_m;
+  auto aligned = [&](Vec3 p) {
+    return std::hypot(p.x - s.ground_point.x, p.y - s.ground_point.y) +
+               s.position_error_m <= l.alignment_m && p.z >= contact_z - 0.05;
+  };
+  if (!aligned(in.position))
+    return {"aircraft is not aligned above the measured landing patch", {}};
+  if (!outside(in.position, in.facade, padding))
+    return {"landing clearance violates the protected facade", {}};
+  double previous_z = in.position.z;
+  for (auto p : in.remaining_route) {
+    if (!aligned(p) || !outside(p, in.facade, padding) || p.z > previous_z + 0.05)
+      return {"landing route leaves the vertical touchdown corridor", {}};
+    previous_z = p.z;
+  }
+  if (std::abs(in.remaining_route.back().z - contact_z) > 0.05)
+    return {"landing route does not end at calibrated contact height", {}};
+  for (const auto &zone : in.no_fly_boxes)
+    if (segment_box(in.position, {s.ground_point.x, s.ground_point.y, contact_z}, zone, padding))
+      return {"landing clearance envelope intersects a no-fly zone", {}};
+  bool covered = false;
+  for (const auto &coverage : in.coverage) {
+    const auto &b = coverage.bounds;
+    if (coverage.observed_at_s >= 0 && coverage.observed_at_s <= in.now_s &&
+        in.now_s - coverage.observed_at_s <= age_limit &&
+        b.minimum.x <= s.ground_point.x - padding &&
+        b.maximum.x >= s.ground_point.x + padding &&
+        b.minimum.y <= s.ground_point.y - padding &&
+        b.maximum.y >= s.ground_point.y + padding &&
+        b.minimum.z <= s.ground_point.z + s.position_error_m &&
+        b.maximum.z >= in.position.z)
+      covered = true;
+  }
+  if (!covered)
+    return {"downward observations do not cover the whole descent footprint", {}};
+  const double height = std::max(0.0, in.position.z - contact_z);
+  const double rate = in.velocity.z < 0 ? -in.velocity.z : l.max_descent_mps;
+  const double duration = std::max(c.horizon_s, height / rate);
+  if (!finite(duration) || duration > l.max_duration_s)
+    return {"landing duration exceeds observed planning limits", {}};
+  const Box column{{s.ground_point.x - padding, s.ground_point.y - padding,
+                     s.ground_point.z - s.position_error_m},
+                    {s.ground_point.x + padding, s.ground_point.y + padding,
+                     in.position.z + c.drone_radius_m}};
+  for (std::size_t i = 0; i < in.obstacles.size(); ++i) {
+    const auto &o = in.obstacles[i];
+    if (!o.position_known || o.confidence < std::max(c.minimum_confidence, l.minimum_confidence) ||
+        o.observed_at_s < 0 || o.observed_at_s > in.now_s ||
+        in.now_s - o.observed_at_s > age_limit)
+      return {"landing obstacle position or freshness is uncertain", i};
+    const double age = in.now_s - o.observed_at_s;
+    const Vec3 position = o.velocity_known ? add(o.position, mul(o.velocity, age)) : o.position;
+    const Vec3 predicted = o.velocity_known ? add(position, mul(o.velocity, duration)) : position;
+    // People and animals can start moving even when their tracked velocity is zero.
+    const double uncertainty = o.velocity_known && o.priority != 1 ? 0 :
+        c.unknown_obstacle_speed_mps * (age + duration);
+    if (segment_box(position, predicted, column, o.radius_m + uncertainty))
+      return {"hazard below aircraft or moving into the landing corridor", i};
+  }
+  return {};
+}
 } // namespace
+
+bool valid_config(const Config &c) { return config_valid(c); }
+bool usable_vehicle_state(const Input &in, const Config &c) {
+  const auto &s = in.state;
+  switch (s.mode) {
+  case FlightMode::transit: case FlightMode::window_delivery:
+  case FlightMode::landing: case FlightMode::landed: break;
+  case FlightMode::unknown: return false;
+  default: return false;
+  }
+  return finite(in.now_s) && in.now_s >= 0 && finite(s.observed_at_s) &&
+         s.observed_at_s >= 0 && s.observed_at_s <= in.now_s &&
+         in.now_s - s.observed_at_s <= c.max_age_s && finite(in.position) &&
+         finite(in.velocity) && s.position_valid && s.velocity_valid && s.attitude_valid &&
+         s.motors_healthy && s.thrust_available && finite(s.roll_deg) && finite(s.pitch_deg) &&
+         std::abs(s.roll_deg) <= c.max_tilt_deg && std::abs(s.pitch_deg) <= c.max_tilt_deg &&
+         std::cos(s.roll_deg * std::numbers::pi / 180) *
+             std::cos(s.pitch_deg * std::numbers::pi / 180) >=
+             std::cos(c.max_tilt_deg * std::numbers::pi / 180);
+}
 
 Decision decide(const Input &in, const Config &c) {
   Decision out;
@@ -194,6 +313,11 @@ Decision decide(const Input &in, const Config &c) {
       in.obstacles.size() > 128 || in.no_fly_boxes.size() > 64 ||
       in.coverage.size() > 64)
     return hold("invalid or oversized local navigation input");
+  if (!usable_vehicle_state(in, c))
+    return hold("aircraft mode, pose timestamp, estimator or control health invalid");
+  if (in.state.mode == FlightMode::landed)
+    return hold("autopilot reports landed; no navigation motion permitted");
+  const bool landing = in.state.mode == FlightMode::landing;
   if (!in.sensors_ready || !fresh(in.now_s, in.observations_at_s, c.max_age_s))
     return hold("observation pipeline unavailable or heartbeat stale");
   double speed = norm(in.velocity);
@@ -201,12 +325,17 @@ Decision decide(const Input &in, const Config &c) {
     return hold("invalid or excessive speed");
   out.braking_distance_m = speed * speed / (2 * c.deceleration_mps2) +
                            speed * c.reaction_s + c.clearance_m;
+  const Vec3 stop_position = speed > 1e-6 ?
+      add(in.position, mul(in.velocity, (speed * c.reaction_s +
+          speed * speed / (2 * c.deceleration_mps2)) / speed)) : in.position;
   for (auto p : in.remaining_route)
     if (!finite(p) || norm(sub(p, in.position)) > 100000)
       return hold("invalid local route coordinate");
   for (const auto &b : in.no_fly_boxes)
     if (!valid_box(b))
       return hold("invalid no-fly geometry");
+    else if (segment_box(in.position, stop_position, b, c.drone_radius_m + c.clearance_m))
+      return hold("current braking trajectory intersects a no-fly zone");
   for (const auto &coverage : in.coverage)
     if (!valid_box(coverage.bounds) || !finite(coverage.observed_at_s))
       return hold("invalid sensor coverage");
@@ -219,6 +348,8 @@ Decision decide(const Input &in, const Config &c) {
       return hold("invalid exterior window plane");
     if (!outside(in.position, in.facade, c.drone_radius_m + c.clearance_m))
       return hold("window standoff violated");
+    if (!outside(stop_position, in.facade, c.drone_radius_m + c.clearance_m))
+      return hold("insufficient braking distance before protected facade");
   }
   if (in.window_handoff)
     return hold("window handoff requires stationary exterior hover");
@@ -307,10 +438,18 @@ Decision decide(const Input &in, const Config &c) {
                   proximity.along - uncertainty -
                       speed * std::max(0.0, caution_horizon - c.horizon_s))});
   }
+  if (landing) {
+    const auto landing = check_landing(in, c);
+    if (landing.reason) {
+      out.obstacle_index = landing.obstacle_index;
+      return hold(landing.reason);
+    }
+  }
   if (threats.empty()) {
     out.action = Action::proceed;
-    out.reason = "no relevant obstacle in remaining route corridor";
-    out.desired_speed_mps = speed;
+    out.reason = landing ? "landing surface and full descent corridor verified" :
+                                        "no relevant obstacle in remaining route corridor";
+    out.desired_speed_mps = landing ? std::min(speed, c.landing.max_descent_mps) : speed;
     return out;
   }
   std::sort(

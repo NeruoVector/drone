@@ -28,6 +28,7 @@ int main() {
   require(std::hypot(o.position.x - 5, o.position.y - 4, o.position.z - 3) < 1e-9);
   avoid::Input in;
   in.now_s = in.observations_at_s = 10; in.sensors_ready = true;
+  in.state = {avoid::FlightMode::transit, 10, true, true, true, 0, 0, true, true};
   in.position = {0, 4, 3}; in.velocity = {2, 0, 0}; in.remaining_route = {{20, 4, 3}};
   in.obstacles = {o};
   require(avoid::decide(in).action == avoid::Action::hold);
