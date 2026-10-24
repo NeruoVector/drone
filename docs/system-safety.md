@@ -43,6 +43,11 @@ This layer does not operate motors or send PX4 commands. The adapter must implem
 this handling and must not use `navigation.action` alone. Native/operator control
 always takes priority.
 
+The sibling `sim` checkout now supplies the `nv_safety_bridge` ROS 2 package for
+actual PX4 state conversion, typed observations, intervention commands and ACKs.
+See `sim/docs/safety-bridge.md` in the platform workspace. Physical observation
+producers and the authorized route controller remain required.
+
 Battery capacity must exceed return energy plus reserve. Invalid/stale aircraft
 state, battery emergency, insufficient reserve, link loss, absent independent
 watchdog, native failsafe and operator override delegate control to the autopilot.
@@ -63,6 +68,10 @@ and deceleration for load and weather. Window endpoints are checked before every
 movement-permitting result, including slow. Original configuration is validated
 before uncertainty inflation. Handoff alignment includes aircraft and target error
 within the 25 cm budget.
+
+Collision prediction includes stationary hover after the final waypoint for the
+rest of the prediction horizon. Fresh system status and native/operator priority
+also gate landed/disarm permission; physical contact cannot bypass that priority.
 
 People/animals use a reachable-region bound during landing even with tracked zero
 velocity. This can block landing for a person outside the immediate footprint;
@@ -100,7 +109,7 @@ recipient recognition and payload hardware still require integration.
 ## Verification of the current working tree
 
 GCC 14.2/C++20 with `-Wall -Wextra -Wpedantic -Werror`: seven CTest suites passed,
-including 39 safety regression cases, 39 landing cases and 12 delivery demo cases.
+including 42 safety regression cases, 39 landing cases and 12 delivery demo cases.
 The same seven suites passed AddressSanitizer and UndefinedBehaviorSanitizer.
 The earlier three-case public-API reproduction now reports `failed_acceptance_cases=0/3`.
 The school scenario runner passed 16 avoidance cases, two Rust/C++ route checks and
