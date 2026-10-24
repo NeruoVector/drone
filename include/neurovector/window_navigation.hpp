@@ -24,7 +24,7 @@ struct WindowSurvey {
   Vec3 facade_point, outward_normal;
   double first_row_height_m{}, floor_pitch_m{3.0}, row_tolerance_m{0.35};
   int first_floor{1};
-  // All rows from the surveyed first floor to the requested floor were observed.
+  // All lower rows and every window in the requested row were observed.
   bool rows_complete{};
   double protected_standoff_m{2.0}, center_standoff_m{4.0};
 };
@@ -40,6 +40,7 @@ struct WindowTarget {
   int floor{};
   Vec3 center_enu, hover_enu;
   avoidance::Facade facade;
+  double error_m{};
 };
 struct WindowResult {
   std::optional<WindowTarget> target;

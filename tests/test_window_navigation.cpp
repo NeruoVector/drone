@@ -32,7 +32,8 @@ int main() {
   require(result.target->hover_enu.y == -4);
   // Latitude selects the facade; longitude chooses another window in the same row.
   r.destination.point.longitude_deg += 4 / (6378137 * std::cos(37 * std::acos(-1.0) / 180)) * 180 / std::acos(-1.0);
-  require(nav::locate_window(r).target->id == "3-1");
+  result = nav::locate_window(r);
+  require(result.target && result.target->id == "3-1");
   r.destination.horizontal_error_m = 3;
   require(!nav::locate_window(r).target);
   r = fixture();

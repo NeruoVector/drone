@@ -27,7 +27,8 @@ Let `b = Tx - Rx`, `u` be the receiver-to-reflector unit bearing, and
 The implementation encloses range and bearing uncertainty, including antenna
 survey error, in a sphere and adds it to the physical obstacle radius. Degenerate
 geometry or error above 10 m fails localization. Supplied error fields must be
-actual bounds, not unscaled standard deviations. Moving receiver pose must match
+actual bounds, not unscaled standard deviations; `angular_error_rad` bounds the
+entire 3D bearing cone. Moving receiver pose must match
 the measurement time and use the same surveyed ENU frame as camera navigation.
 
 Only a full tracked 3D velocity may set `tracked_velocity_enu_mps`. A single Doppler

@@ -12,7 +12,9 @@ rectangles as windows or estimate floor height from GNSS altitude.
 
 Survey the building's first visible window-row height, its actual floor number,
 floor pitch, facade plane and outward normal. `rows_complete` is an explicit
-confirmation that every floor from that anchor to the destination was observed.
+confirmation that every floor from that anchor to the destination, and every
+window in the destination row, was observed. Cropped columns can hide a closer
+window and must not be marked complete.
 Each row must agree with the surveyed pitch including its vertical error bound;
 missing rows, duplicate IDs, stale observations and windows on other facades fail.
 Several windows at one height belong to one floor. Split-level buildings, skipped
