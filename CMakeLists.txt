@@ -65,6 +65,12 @@ if(NEUROVECTOR_BUILD_TESTS)
     target_link_libraries(wifi_sensing_tests PRIVATE neurovector::nv_avoidance)
     add_test(NAME wifi_sensing_tests COMMAND wifi_sensing_tests)
     add_test(NAME delivery_navigation_scenarios COMMAND nv_delivery_demo)
+    add_executable(landing_safety_tests tests/test_landing_safety.cpp)
+    target_link_libraries(landing_safety_tests PRIVATE neurovector::nv_avoidance)
+    add_test(NAME landing_safety_tests COMMAND landing_safety_tests)
+    add_executable(safety_regression_tests tests/test_safety_regressions.cpp)
+    target_link_libraries(safety_regression_tests PRIVATE neurovector::nv_avoidance)
+    add_test(NAME safety_regression_tests COMMAND safety_regression_tests)
 endif()
 
 # ---- 설치 ----------------------------------------------------------------

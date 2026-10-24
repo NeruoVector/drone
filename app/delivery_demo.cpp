@@ -12,6 +12,9 @@ nav::DeliveryInput fixture() {
   nav::DeliveryInput in;
   in.vehicle_position_error_m = 0.1;
   in.flight.sensors_ready = true;
+  in.flight.state = {avoid::FlightMode::window_delivery, 0, true, true, true, 0, 0, true, true};
+  in.system = {0, 100, 20, 10, true, true, true};
+  in.handoff = {0, true, true, true, true, true, "3-0"};
   in.flight.position = {0, -10, 7.5}; in.flight.velocity = {0, 1, 0};
   in.flight.remaining_route = {{0, -4, 7.5}};
   in.destination.floor = 3;
@@ -43,6 +46,7 @@ nav::DeliveryInput fixture() {
 }
 void stamp(nav::DeliveryInput &in, double time) {
   in.flight.now_s = in.flight.observations_at_s = time;
+  in.flight.state.observed_at_s = in.system.observed_at_s = in.handoff.observed_at_s = time;
   in.destination.now_s = in.destination.destination.observed_at_s = time;
   for (auto &w : in.destination.windows) w.observed_at_s = time;
   in.disturbance->observed_at_s = in.wifi.observed_at_s = time;
@@ -63,6 +67,7 @@ int main() {
         throw std::runtime_error(std::string(name) + ": " + d.navigation.reason);
       std::cout << "{\"case\":" << std::quoted(name) << ",\"action\":"
                 << std::quoted(avoid::action_name(d.navigation.action))
+                << ",\"safety\":" << std::quoted(nav::safety_name(d.safety))
                 << ",\"reason\":" << std::quoted(d.navigation.reason)
                 << ",\"handoff_ready\":" << (d.handoff_ready ? "true" : "false") << "}\n";
       ++passed;

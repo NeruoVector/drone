@@ -53,6 +53,17 @@ protection from attacks, or the indoor Wi-Fi paper's accuracy in outdoor conditi
 Algorithm details and source papers: [window localization](window-navigation.md),
 [fast reflex](fast-reflex.md), [Wi-Fi geometry](wifi-sensing.md).
 
+The supervisor also supports [downward landing checks](landing-safety.md).
+Set `flight.state.mode=FlightMode::landing` for landing and supply `flight.landing_surface`,
+downward coverage and hazards. This uses the existing disturbance/Wi-Fi gates with
+the authorized landing route; recipient-window evidence is not required in this mode.
+
+The supervisor additionally requires fresh aircraft/system state and battery return
+reserve, and verifies recipient/payload interlocks for handoff. Read the
+[system safety contract](system-safety.md) before integrating it: consumers must
+honor `DeliveryDecision.safety`, including native failsafe delegation and confirmed
+touchdown. The former landing-request boolean was replaced by actual flight mode.
+
 Verified on 2026-10-24 with GCC 14.2, C++20, Debug and
 `-Wall -Wextra -Wpedantic -Werror`: five CTest suites passed, including 12 integrated
 delivery cases. The same suites passed AddressSanitizer and UndefinedBehaviorSanitizer.
