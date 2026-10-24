@@ -117,6 +117,12 @@ double path_ttc(const std::vector<Vec3> &path, Vec3 obstacle, Vec3 velocity,
       return elapsed + t;
     elapsed += length / speed;
   }
+  if (elapsed < horizon) {
+    const auto separation = sub(add(obstacle, mul(velocity, elapsed)), path.back());
+    const double t = collision_time(separation, velocity, radius, horizon - elapsed);
+    if (finite(t))
+      return elapsed + t;
+  }
   return infinity;
 }
 Vec3 at_distance(const std::vector<Vec3> &path, double distance) {

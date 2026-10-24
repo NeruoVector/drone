@@ -73,6 +73,13 @@ int main() {
   person.position = {2.5, 0, 0.5}; person.radius_m = 0.3; in.obstacles = {person};
   require(nav::decide(in).action == nav::Action::hold, "stationary person can enter landing perimeter");
   int checked = 6;
+  in.state.mode = nav::FlightMode::transit;
+  in.position = {0, 0, 5}; in.velocity = {1, 0, 0};
+  in.remaining_route = {{1, 0, 5}};
+  person.priority = 2; person.position = {1, 3, 5}; person.velocity = {0, -1, 0};
+  person.radius_m = 0.1; in.obstacles = {person};
+  require(nav::decide(in).action != nav::Action::proceed,
+          "moving obstacle reaches the endpoint while aircraft hovers there"); ++checked;
   auto reject = [&](const char *name, auto mutate,
                     delivery::SafetyDirective expected = delivery::SafetyDirective::delegate_to_autopilot) {
     auto input = fixture(); delivery::DeliveryNavigator supervisor; warm(supervisor, input);
@@ -143,6 +150,17 @@ int main() {
   for (int tick = 112; tick <= 222; ++tick) { stamp(input, tick * 0.01); d = contact.update(input); }
   require(d.disarm_allowed && d.safety == delivery::SafetyDirective::landed &&
           d.navigation.desired_speed_mps == 0 && !d.handoff_ready, "confirmed touchdown never completed"); ++checked;
+  for (bool native : {false, true}) {
+    auto overridden = input;
+    overridden.system.operator_override = !native;
+    overridden.system.native_failsafe_active = native;
+    delivery::DeliveryNavigator priority;
+    for (int tick = 223; tick <= 340; ++tick) {
+      stamp(overridden, tick * 0.01); d = priority.update(overridden);
+    }
+    require(!d.disarm_allowed && d.safety == delivery::SafetyDirective::delegate_to_autopilot,
+            "landed confirmation bypassed operator/native control priority"); ++checked;
+  }
   input.flight.state.ground_contact = false; stamp(input, 2.23);
   require(!contact.update(input).disarm_allowed, "ground-contact bounce preserved disarm permission"); ++checked;
   std::cout << "safety regression cases passed: " << checked << '\n';

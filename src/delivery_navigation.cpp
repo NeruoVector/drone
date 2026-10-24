@@ -59,6 +59,11 @@ DeliveryDecision DeliveryNavigator::update(const DeliveryInput &in, const avoida
     return stop("aircraft mode, fresh pose, estimator or control authority unavailable",
                 SafetyDirective::delegate_to_autopilot);
   }
+  if (!fresh(in.system.observed_at_s) || in.system.native_failsafe_active || in.system.operator_override) {
+    contact_since_.reset(); last_contact_sample_.reset();
+    return stop("system status stale or native/operator control has priority",
+                SafetyDirective::delegate_to_autopilot);
+  }
   const auto &state = in.flight.state;
   if (state.mode == avoidance::FlightMode::landed) {
     const auto v = in.flight.velocity;
@@ -81,8 +86,7 @@ DeliveryDecision DeliveryNavigator::update(const DeliveryInput &in, const avoida
     return stop("native failsafe latched; a newly authorized mission requires a new supervisor",
                 SafetyDirective::delegate_to_autopilot);
   const auto &system = in.system;
-  if (!fresh(system.observed_at_s) || !system.command_link_healthy ||
-      !system.independent_watchdog_enabled || system.native_failsafe_active || system.operator_override)
+  if (!system.command_link_healthy || !system.independent_watchdog_enabled)
     return stop("link/watchdog unavailable or native/operator control has priority",
                 SafetyDirective::delegate_to_autopilot);
   if (!system.battery_healthy || !std::isfinite(system.usable_energy_wh) ||
