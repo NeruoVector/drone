@@ -118,7 +118,8 @@ WindowResult locate_window(const WindowRequest &r) {
              w.center_enu.y + s.outward_normal.y * s.center_standoff_m,
              w.center_enu.z};
   return {WindowTarget{w.id, r.floor, w.center_enu, hover,
-                       {w.center_enu, s.outward_normal, s.protected_standoff_m}},
+                       {w.center_enu, s.outward_normal, s.protected_standoff_m},
+                       w.error_m + s.origin_error_m},
           "window row and GPS destination resolved"};
 }
 } // namespace neurovector::navigation

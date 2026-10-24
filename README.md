@@ -101,6 +101,7 @@ MIT
 - [독립 임무 검증기](docs/mission.md): 백엔드 계획의 거리·에너지·금지구역·창문 바깥 정지 지점을 C++에서 다시 계산합니다.
 - [위험도별 회피 판단](docs/avoidance.md): 1·2·3단계 감지와 실제 남은 경로, 거리·상대 속도·관측 신선도를 이용해 진행·감속·정지·재계획을 판단합니다.
 - 공개 헤더: `neurovector/mission.hpp`, `neurovector/avoidance.hpp`
+- [창문 층수·GPS·돌풍·Wi-Fi 통합 판단](docs/delivery-navigation.md): 기준층부터 창문 행을 확인하고 GPS 오차 내에서 목표 창문을 선택합니다. `nv_delivery_demo`로 합성 통합 시나리오를 실행할 수 있습니다. 실제 센서·모델·비행 제어 연결은 별도 필요합니다.
 - CMake 대상: `neurovector::nv_mission`, `neurovector::nv_avoidance`, 실행 파일 `nv_route_check`
 
 현재 HAL에는 임무 통신·GPS 항법·자동 비행 제어기가 없으므로 새 계층은 계산과 결정을 반환합니다.
