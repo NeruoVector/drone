@@ -16,7 +16,7 @@ target_include_directories(nv_mission PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-add_library(nv_avoidance src/avoidance.cpp src/window_navigation.cpp)
+add_library(nv_avoidance src/avoidance.cpp src/window_navigation.cpp src/fast_reflex.cpp)
 add_library(neurovector::nv_avoidance ALIAS nv_avoidance)
 target_include_directories(nv_avoidance PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -55,6 +55,9 @@ if(NEUROVECTOR_BUILD_TESTS)
     add_executable(window_navigation_tests tests/test_window_navigation.cpp)
     target_link_libraries(window_navigation_tests PRIVATE neurovector::nv_avoidance)
     add_test(NAME window_navigation_tests COMMAND window_navigation_tests)
+    add_executable(fast_reflex_tests tests/test_fast_reflex.cpp)
+    target_link_libraries(fast_reflex_tests PRIVATE neurovector::nv_avoidance)
+    add_test(NAME fast_reflex_tests COMMAND fast_reflex_tests)
 endif()
 
 # ---- 설치 ----------------------------------------------------------------
