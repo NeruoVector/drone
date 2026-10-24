@@ -16,7 +16,7 @@ target_include_directories(nv_mission PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-add_library(nv_avoidance src/avoidance.cpp)
+add_library(nv_avoidance src/avoidance.cpp src/window_navigation.cpp)
 add_library(neurovector::nv_avoidance ALIAS nv_avoidance)
 target_include_directories(nv_avoidance PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -52,6 +52,9 @@ if(NEUROVECTOR_BUILD_TESTS)
     add_executable(drone_tests tests/test_drone_hal.cpp)
     target_link_libraries(drone_tests PRIVATE neurovector::drone_hal neurovector::nv_pwm)
     add_test(NAME drone_tests COMMAND drone_tests)
+    add_executable(window_navigation_tests tests/test_window_navigation.cpp)
+    target_link_libraries(window_navigation_tests PRIVATE neurovector::nv_avoidance)
+    add_test(NAME window_navigation_tests COMMAND window_navigation_tests)
 endif()
 
 # ---- 설치 ----------------------------------------------------------------
