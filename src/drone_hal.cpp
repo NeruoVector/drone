@@ -10,7 +10,7 @@ Motor::Motor(std::string name, std::uint8_t channel)
     : name_(std::move(name)), channel_(channel) {}
 
 void Motor::set_throttle(double percent) {
-    throttle_ = std::clamp(percent, 0.0, 100.0);
+    throttle_ = armed_ && std::isfinite(percent) ? std::clamp(percent, 0.0, 100.0) : 0.0;
 }
 
 void Motor::arm() { armed_ = true; }
@@ -65,6 +65,7 @@ void FlightController::disarm() {
         motor.disarm();
     }
     armed_ = false;
+    collective_ = 0.0;
 }
 
 bool FlightController::armed() const { return armed_; }
@@ -74,20 +75,30 @@ void FlightController::set_throttle(double percent) {
     if (!armed_) {
         return;
     }
+    collective_ = std::isfinite(percent) ? std::clamp(percent, 0.0, 100.0) : 0.0;
     for (auto& motor : motors_) {
-        motor.set_throttle(percent);
+        motor.set_throttle(collective_);
     }
 }
 
 void FlightController::mix(double roll, double pitch, double yaw) {
     // 쿼드콥터 X 프레임 단순 믹싱
-    const double base = motors_.empty() ? 0.0 : motors_.front().throttle();
+    if (!armed_) return;
+    if (!std::isfinite(roll) || !std::isfinite(pitch) || !std::isfinite(yaw)) {
+        set_throttle(0.0);
+        return;
+    }
+    const double base = collective_;
     const double m1 = base + pitch - roll + yaw;
     const double m2 = base + pitch + roll - yaw;
     const double m3 = base - pitch - roll - yaw;
     const double m4 = base - pitch + roll + yaw;
 
     const double mix_values[4] = {m1, m2, m3, m4};
+    if (!std::all_of(std::begin(mix_values), std::end(mix_values), [](double v) { return std::isfinite(v); })) {
+        set_throttle(0.0);
+        return;
+    }
     for (std::size_t i = 0; i < motors_.size() && i < 4; ++i) {
         motors_[i].set_throttle(mix_values[i]);
     }
@@ -102,6 +113,8 @@ ImuSample FlightController::read_imu() { return imu_.read(); }
 const DroneConfig& FlightController::config() const { return config_; }
 
 double FlightController::clamp_power(double watts) const {
+    if (!std::isfinite(watts) || !std::isfinite(config_.max_power_watts) ||
+        config_.max_power_watts <= 0.0) return 0.0;
     return std::clamp(watts, 0.0, config_.max_power_watts);
 }
 

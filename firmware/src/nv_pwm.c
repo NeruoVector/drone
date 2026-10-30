@@ -1,6 +1,7 @@
 #include "nv_pwm.h"
 
 #include <stddef.h>
+#include <math.h>
 
 void nv_pwm_init(nv_pwm_state_t *state) {
     if (state == NULL) {
@@ -36,6 +37,10 @@ int nv_pwm_set_throttle(nv_pwm_state_t *state, uint8_t channel, float percent) {
     /* 시동이 걸리지 않은 상태에서는 출력을 변경하지 않는다. */
     if (!state->armed) {
         return -2;
+    }
+    if (!isfinite(percent)) {
+        state->pulse_us[channel] = NV_PWM_MIN_US;
+        return -3;
     }
     if (percent < 0.0f) {
         percent = 0.0f;

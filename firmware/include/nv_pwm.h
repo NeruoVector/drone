@@ -20,7 +20,9 @@ typedef struct {
 void nv_pwm_init(nv_pwm_state_t *state);
 void nv_pwm_arm(nv_pwm_state_t *state);
 void nv_pwm_disarm(nv_pwm_state_t *state);
-/* percent: 0.0 ~ 100.0 */
+/* Finite percent is clamped to 0..100. Returns 0 on success, -1 for
+ * invalid state/channel, -2 if disarmed, -3 for non-finite percent.
+ * A non-finite command sets the addressed channel to the minimum pulse. */
 int nv_pwm_set_throttle(nv_pwm_state_t *state, uint8_t channel, float percent);
 uint16_t nv_pwm_pulse_us(const nv_pwm_state_t *state, uint8_t channel);
 

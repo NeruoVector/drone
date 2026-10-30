@@ -27,6 +27,7 @@ class Motor {
 public:
     Motor(std::string name, std::uint8_t channel);
 
+    // Disarmed or non-finite commands force zero; finite commands clamp to 0..100.
     void set_throttle(double percent);
     void arm();
     void disarm();
@@ -69,6 +70,7 @@ public:
     void disarm();
     bool armed() const;
 
+    // Non-finite commands clear the collective and outputs; disarm clears stale commands.
     void set_throttle(double percent);
     void mix(double roll, double pitch, double yaw);
 
@@ -76,6 +78,7 @@ public:
     ImuSample read_imu();
     const DroneConfig& config() const;
 
+    // Invalid input or a non-positive/non-finite configured limit returns zero.
     double clamp_power(double watts) const;
 
 private:
@@ -83,6 +86,7 @@ private:
     Imu imu_;
     std::vector<Motor> motors_;
     bool armed_ = false;
+    double collective_ = 0.0;
 };
 
 }  // namespace nv

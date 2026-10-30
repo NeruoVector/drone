@@ -52,6 +52,10 @@ if(NEUROVECTOR_BUILD_TESTS)
     add_executable(drone_tests tests/test_drone_hal.cpp)
     target_link_libraries(drone_tests PRIVATE neurovector::drone_hal neurovector::nv_pwm)
     add_test(NAME drone_tests COMMAND drone_tests)
+    add_executable(drone_safety_tests tests/test_safety.cpp)
+    target_link_libraries(drone_safety_tests PRIVATE neurovector::drone_hal neurovector::nv_pwm)
+    add_test(NAME drone_safety_tests COMMAND drone_safety_tests)
+    target_compile_options(drone_tests PRIVATE -UNDEBUG)
 endif()
 
 # ---- 설치 ----------------------------------------------------------------
