@@ -23,6 +23,9 @@ target_include_directories(nv_avoidance PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
+add_executable(nv_avoidance_bridge app/avoidance_bridge.cpp)
+target_link_libraries(nv_avoidance_bridge PRIVATE neurovector::nv_avoidance)
+
 add_executable(nv_route_check app/route_check.cpp)
 target_link_libraries(nv_route_check PRIVATE neurovector::nv_mission)
 
@@ -55,19 +58,26 @@ if(NEUROVECTOR_BUILD_TESTS)
     add_executable(drone_safety_tests tests/test_safety.cpp)
     target_link_libraries(drone_safety_tests PRIVATE neurovector::drone_hal neurovector::nv_pwm)
     add_test(NAME drone_safety_tests COMMAND drone_safety_tests)
-    target_compile_options(drone_tests PRIVATE -UNDEBUG)
     add_executable(drone_mission_tests tests/test_mission_stops.cpp)
     target_link_libraries(drone_mission_tests PRIVATE neurovector::nv_mission)
     add_test(NAME drone_mission_tests COMMAND drone_mission_tests)
     add_executable(drone_mission_zones_tests tests/test_mission_zones.cpp)
     target_link_libraries(drone_mission_zones_tests PRIVATE neurovector::nv_mission)
     add_test(NAME drone_mission_zones_tests COMMAND drone_mission_zones_tests)
+    add_executable(drone_avoidance_tests tests/test_avoidance.cpp)
+    target_link_libraries(drone_avoidance_tests PRIVATE neurovector::nv_avoidance)
+    add_test(NAME drone_avoidance_tests COMMAND drone_avoidance_tests)
+    add_test(NAME drone_bridge_tests COMMAND ${CMAKE_COMMAND}
+        -DBRIDGE=$<TARGET_FILE:nv_avoidance_bridge> -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_bridge.cmake)
+    # Existing tests use assert for operations as well as checks.
+    target_compile_options(drone_tests PRIVATE -UNDEBUG)
 endif()
 
 # ---- 설치 ----------------------------------------------------------------
 include(GNUInstallDirs)
 
-install(TARGETS drone_hal nv_pwm drone_demo nv_mission nv_avoidance nv_route_check
+install(TARGETS drone_hal nv_pwm drone_demo nv_mission nv_avoidance nv_route_check nv_avoidance_bridge
     EXPORT neurovector-drone-targets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
