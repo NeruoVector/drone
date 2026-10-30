@@ -23,7 +23,7 @@ struct MissionReport {
     std::vector<std::string> errors;
     std::string json() const;
 };
-/// Exact NVPLAN1 bytes are fingerprinted. Limits must come from trusted local configuration.
+/// Exact NVPLAN2 bytes are fingerprinted. Limits must come from trusted local configuration.
 MissionReport validate_mission(std::string_view text, const MissionLimits& limits,
                                std::int64_t now_unix);
 

@@ -45,16 +45,19 @@ Supported local flags:
 | `--max-duration-s` | Full flight and hover duration limit |
 | `--max-hold-s` | Outside-window hover duration limit |
 
-The backend default modeled power is 300 W; the HAL default maximum is 120 W. Such a plan is intentionally rejected. Configure the backend model to match known hardware, or provision different local capabilities only when the actual airframe supports them. The tool never silently changes the aircraft limits to make a plan pass.
+The default modeled power and HAL maximum are 120 W. Configure both to match known hardware; a plan exceeding local capabilities or below the locally configured conservative power floor is rejected. The tool never silently changes the aircraft limits to make a plan pass.
 
 ## Wire contract and independent checks
 
-`NVPLAN1` is whitespace-delimited, locale-independent, and limited to 1 MiB. Numeric values must be finite. Its token order is:
+`NVPLAN2` is whitespace-delimited, locale-independent, and limited to 1 MiB. Numeric values must be finite. Its token order is:
 
 ```text
-NVPLAN1 plan_uuid drone_id expires_unix selected_index candidate_count
+NVPLAN2 plan_uuid drone_id expires_unix selected_index candidate_count
 max_altitude max_distance max_leg speed power battery hold_seconds
 window_flag [window_lat window_lon window_alt outward_bearing standoff approach hold]
+required_count
+# Repeat required_count times:
+lat lon altitude
 # Repeat candidate_count times:
 waypoint_count
 lat lon altitude
@@ -68,11 +71,13 @@ lat lon
 
 The comments above document the schema and are not literal protocol tokens. Zone ceiling `-1` means unbounded. Altitude and zone ceiling must use one agreed datum; mixing AGL and AMSL is unsafe and unsupported.
 
-Counts are bounded: 1–16 candidates, 2–256 waypoints per candidate, 0–64 zones, 3–256 polygon vertices and at most 126 vertices overall. Antimeridian route legs and polygons are rejected. A missing zone is not inferred from imagery; the authenticated mission snapshot and local restriction updates must be complete.
+Legacy `NVPLAN1` plans lack an independent required-stop list and are rejected; they must be replanned. The fingerprint binds the supplied list to the plan bytes but does not authenticate its provenance.
+
+Counts are bounded: 2–255 required stops, 1–16 candidates, 2–256 waypoints per candidate, 0–64 zones, 3–256 polygon vertices and at most 126 vertices overall. Antimeridian route legs and polygons are rejected. A missing zone is not inferred from imagery; the authenticated mission snapshot and local restriction updates must be complete.
 
 The validator independently computes each leg as `hypot(haversine_distance, altitude_delta)` with Earth radius 6,371,000 m. Duration includes hover; energy is `power * duration / 3600`. It checks every leg against every polygon edge and polygon interior, including boundary touch. For a ceiling, it clips the leg to the interval at or below that ceiling before polygon intersection. It does not sample points and assume the space between them is clear.
 
-Every candidate has the same departure and final point including altitude. The chosen index must be the first minimum-distance valid candidate, subject to local limits. Optimality is limited to the supplied bounded candidates; this is not proof of a globally shortest path. Server-supplied metrics are not accepted as evidence.
+Every candidate must start and end at the required list endpoints and contain every required stop in order at distinct waypoint indices, including altitude. A candidate missing or reordering any stop invalidates the entire plan. The chosen index must be the first minimum-distance valid candidate, subject to local limits. Optimality is limited to the supplied bounded candidates; this is not proof of a globally shortest path. Server-supplied metrics are not accepted as evidence.
 
 Missions must name the local aircraft and expire after local current time but within 1,800 s. Mission geometry is validated even when the expected hash matches.
 

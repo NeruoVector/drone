@@ -10,7 +10,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 add_library(drone_hal src/drone_hal.cpp)
 add_library(neurovector::drone_hal ALIAS drone_hal)
 
-add_library(nv_mission src/mission.cpp)
+add_library(nv_mission src/mission.cpp src/mission_geometry.cpp src/mission_parse.cpp)
 add_library(neurovector::nv_mission ALIAS nv_mission)
 target_include_directories(nv_mission PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -56,6 +56,12 @@ if(NEUROVECTOR_BUILD_TESTS)
     target_link_libraries(drone_safety_tests PRIVATE neurovector::drone_hal neurovector::nv_pwm)
     add_test(NAME drone_safety_tests COMMAND drone_safety_tests)
     target_compile_options(drone_tests PRIVATE -UNDEBUG)
+    add_executable(drone_mission_tests tests/test_mission_stops.cpp)
+    target_link_libraries(drone_mission_tests PRIVATE neurovector::nv_mission)
+    add_test(NAME drone_mission_tests COMMAND drone_mission_tests)
+    add_executable(drone_mission_zones_tests tests/test_mission_zones.cpp)
+    target_link_libraries(drone_mission_zones_tests PRIVATE neurovector::nv_mission)
+    add_test(NAME drone_mission_zones_tests COMMAND drone_mission_zones_tests)
 endif()
 
 # ---- 설치 ----------------------------------------------------------------
